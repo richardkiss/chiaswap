@@ -1,0 +1,22 @@
+[tool.enscons]
+name = "chiaswap"
+description = "Atomic swaps of Chia (XCH) and Bitcoin (BTC) via lightning."
+authors = ["Richard Kiss <him@richardkiss.com>"]
+license = "MIT"
+repository = "https://github.com/richardkiss/chiaswap.git"
+readme = "README.md"
+src_root = "."
+dependencies = ["chia-blockchain==1.2.11"]
+packages = ["chiaswap"]
+# version is defined with `setuptools_scm`. See `SConstruct` file.
+
+[tool.enscons.optional_dependencies]
+test = ["nose", "coverage"]
+dev = ["flake8==4.0.1", "black==21.12b0"]
+
+[tool.enscons.entry_points]
+console_scripts = ["xchswap = chiaswap.main:main", "pushtx = chiaswap.pushtx:main"]
+
+[build-system]
+requires = ["pytoml>=0.1", "enscons", "setuptools_scm>=6.2"]
+build-backend = "enscons.api"
