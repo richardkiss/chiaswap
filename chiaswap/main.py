@@ -53,6 +53,8 @@ def lookup_xch_prices():
 def fromhex(s):
     if s.lower().startswith("0x"):
         s = s[2:]
+    if len(s) & 1 == 1:
+        s = f"0{s}"
     return bytes.fromhex(s)
 
 
