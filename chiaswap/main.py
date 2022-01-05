@@ -167,7 +167,7 @@ def ui_get_private_key(input, public_key):
         print("private key is a 64 character hex string")
 
 
-def ui_get_pubkey_with_sig(input):
+def ui_get_pubkey_with_sig(input, my_pubkey):
     while 1:
         r = input("> ")
         r = r.strip()
@@ -175,6 +175,9 @@ def ui_get_pubkey_with_sig(input):
             puzzle_hash_hex, sig_hex = r.split("_")
             b1 = fromhex(puzzle_hash_hex)
             g1 = blspy.G1Element.from_bytes(b1)
+            if g1 == my_pubkey:
+                print("that's your public key, silly! Try again.")
+                continue
             b2 = fromhex(sig_hex)
             g2 = blspy.G2Element.from_bytes(b2)
             r = blspy.AugSchemeMPL.verify(g1, OWNERSHIP_MESSAGE, g2)
@@ -401,7 +404,7 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos):
     print()
 
     print("enter your counter-party's public key as pasted by them")
-    sweep_public_key = ui_get_pubkey_with_sig(logfile)
+    sweep_public_key = ui_get_pubkey_with_sig(logfile, clawback_public_key)
     print()
 
     total_pubkey = sweep_public_key + clawback_public_key
@@ -494,7 +497,7 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos):
     print()
 
     print("enter your counter-party's public key as pasted by them")
-    clawback_public_key = ui_get_pubkey_with_sig(logfile)
+    clawback_public_key = ui_get_pubkey_with_sig(logfile, sweep_public_key)
     print()
 
     total_pubkey = sweep_public_key + clawback_public_key
