@@ -150,18 +150,6 @@ def ui_get_parent_coin_id(input):
         print("parent coin id is a 64 character hex string")
 
 
-def ui_get_pubkey(input):
-    while 1:
-        r = input("enter counter-party pubkey> ")
-        try:
-            b = fromhex(r)
-            g1 = blspy.G1Element.from_bytes(b)
-            return g1
-        except Exception:
-            pass
-        print("pubkey is a 96 character hex string")
-
-
 def ui_get_private_key(input, public_key):
     while 1:
         r = input("enter counter-party private key\n> ")
