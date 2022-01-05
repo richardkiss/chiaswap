@@ -481,7 +481,6 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos):
     print(f"after {hours} hours.")
     print()
     print(f"clawback spend bundle: {spend_bundle_hex}")
-    # spend_bundle.debug()
     return
 
 
@@ -685,7 +684,6 @@ def handle_remote_secret(
 
     total_sig = blspy.AugSchemeMPL.sign(total_private_key, message)
     clean_spend_bundle = SpendBundle([coin_spend], total_sig)
-    # clean_spend_bundle.debug()
     print(f"clean spend bundle: {bytes(clean_spend_bundle).hex()}")
     print()
     print("Use the spend bundle above because it's smaller and is")
