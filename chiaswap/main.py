@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
+import datetime
 import hashlib
 import json
+import re
 import os
 import secrets
 import urllib.request
@@ -61,8 +63,34 @@ def fromhex(s):
 # ### ui
 
 
+def ui_choose_path(possible_paths):
+    if len(possible_paths) > 0:
+        while 1:
+            print(f" 0. NEW SWAP")
+            for idx, pp in enumerate(possible_paths):
+                print(f"{(idx+1):2}. {pp}")
+            r = input("> ")
+            try:
+                v = int(r)
+                if v == 0:
+                    break
+                return possible_paths[v - 1]
+            except ValueError:
+                pass
+    name = input('(optional) short name for counterparty (example: "ed")> ')
+    if len(name) > 0:
+        name = f"-{name}"
+    now = datetime.datetime.now().strftime("%Y-%m-%d-%H%M%S")
+    path = f"xchswap-log-{now}{name}.txt"
+    return path
+
+
 def ui_get_logfile():
-    path = "xchlog.txt"
+    cre = re.compile(r"xchswap-log-(\d{4})-(\d{2})-(\d{2})-(\d{6})(\-.+)?.txt")
+    possible_paths = [_ for _ in os.listdir(".") if cre.match(_)]
+    possible_paths.sort()
+    path = ui_choose_path(possible_paths)
+
     if not os.path.exists(path):
         with open(path, "a") as f:
             secret_key = secrets.randbits(256)
@@ -176,6 +204,7 @@ def ui_get_pubkey_with_sig(input, my_pubkey):
             b1 = fromhex(puzzle_hash_hex)
             g1 = blspy.G1Element.from_bytes(b1)
             if g1 == my_pubkey:
+                print()
                 print("that's your public key, silly! Try again.")
                 continue
             b2 = fromhex(sig_hex)
