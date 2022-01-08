@@ -5,6 +5,7 @@ import json
 import os
 import secrets
 import urllib.request
+import urllib.error
 
 from decimal import Decimal
 from typing import Tuple
@@ -54,6 +55,16 @@ def fromhex(s):
     if s.lower().startswith("0x"):
         s = s[2:]
     return bytes.fromhex(s)
+
+def get_coins_from_address(address):
+    try:
+        resp = urllib.request.urlopen(f"https://api.aggsig.me/address/{address}", timeout=10)
+        if resp.getcode() == 200:
+            return json.load(resp)["coin_records"]
+    except urllib.error.HTTPError as e:
+        pass
+
+
 
 
 # ### ui
@@ -422,14 +433,23 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos):
     print(f"go into your XCH wallet and send {xch_amount} XCH to")
     print(f"{address}")
     print()
-    print("Go to an explorer and look up the parent coin info/name (32 byte hex)")
-    print(f"https://chia.tt/info/address/{address}")
-    print(" => then click on `Coin Name`")
-    # print(f"https://xchscan.com/address/{address} (not sure how to find it here)")
-    # print(f"https://www.chiaexplorer.com/blockchain/address/{address} (not sure how to find it here)")
+    input("Once confirmed, press <enter> to continue")
     print()
-    print("Enter it below")
-    parent_coin_id = ui_get_parent_coin_id(logfile)
+    while True:
+        print("Looking up parent coin ID...")
+        coin_recs = get_coins_from_address(address)
+        if coin_recs:
+            coin_rec = next((cr for cr in coin_recs if cr["coin"]["amount"] == xch_amount_mojos),
+                            None)
+            if coin_rec:
+                parent_coin_id = coin_rec["coin"]["parent_coin_info"]
+                break
+        else:
+            time.sleep(10)
+    print()
+    print(f"Found parent coin ID: {parent_coin_id}")
+
+    # TODO: save parent_coin_id to logfile.
 
     print()
     print("You need to enter a refund address where your XCH will be returns if")
