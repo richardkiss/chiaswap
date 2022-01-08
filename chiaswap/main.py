@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
+import datetime
 import hashlib
 import json
+import re
 import os
 import secrets
 import urllib.request
@@ -54,6 +56,8 @@ def lookup_xch_prices():
 def fromhex(s):
     if s.lower().startswith("0x"):
         s = s[2:]
+    if len(s) & 1 == 1:
+        s = f"0{s}"
     return bytes.fromhex(s)
 
 def get_coins_from_address(address):
@@ -70,8 +74,34 @@ def get_coins_from_address(address):
 # ### ui
 
 
+def ui_choose_path(possible_paths):
+    if len(possible_paths) > 0:
+        while 1:
+            print(f" 0. NEW SWAP")
+            for idx, pp in enumerate(possible_paths):
+                print(f"{(idx+1):2}. {pp}")
+            r = input("> ")
+            try:
+                v = int(r)
+                if v == 0:
+                    break
+                return possible_paths[v - 1]
+            except ValueError:
+                pass
+    name = input('(optional) short name for counterparty (example: "ed")> ')
+    if len(name) > 0:
+        name = f"-{name}"
+    now = datetime.datetime.now().strftime("%Y-%m-%d-%H%M%S")
+    path = f"xchswap-log-{now}{name}.txt"
+    return path
+
+
 def ui_get_logfile():
-    path = "xchlog.txt"
+    cre = re.compile(r"xchswap-log-(\d{4})-(\d{2})-(\d{2})-(\d{6})(\-.+)?.txt")
+    possible_paths = [_ for _ in os.listdir(".") if cre.match(_)]
+    possible_paths.sort()
+    path = ui_choose_path(possible_paths)
+
     if not os.path.exists(path):
         with open(path, "a") as f:
             secret_key = secrets.randbits(256)
@@ -161,18 +191,6 @@ def ui_get_parent_coin_id(input):
         print("parent coin id is a 64 character hex string")
 
 
-def ui_get_pubkey(input):
-    while 1:
-        r = input("enter counter-party pubkey> ")
-        try:
-            b = fromhex(r)
-            g1 = blspy.G1Element.from_bytes(b)
-            return g1
-        except Exception:
-            pass
-        print("pubkey is a 96 character hex string")
-
-
 def ui_get_private_key(input, public_key):
     while 1:
         r = input("enter counter-party private key\n> ")
@@ -188,7 +206,7 @@ def ui_get_private_key(input, public_key):
         print("private key is a 64 character hex string")
 
 
-def ui_get_pubkey_with_sig(input):
+def ui_get_pubkey_with_sig(input, my_pubkey):
     while 1:
         r = input("> ")
         r = r.strip()
@@ -196,6 +214,10 @@ def ui_get_pubkey_with_sig(input):
             puzzle_hash_hex, sig_hex = r.split("_")
             b1 = fromhex(puzzle_hash_hex)
             g1 = blspy.G1Element.from_bytes(b1)
+            if g1 == my_pubkey:
+                print()
+                print("that's your public key, silly! Try again.")
+                continue
             b2 = fromhex(sig_hex)
             g2 = blspy.G2Element.from_bytes(b2)
             r = blspy.AugSchemeMPL.verify(g1, OWNERSHIP_MESSAGE, g2)
@@ -221,6 +243,27 @@ def ui_get_sweep_preimage(input, sweep_receipt_hash):
         except Exception:
             pass
         print("invalid, try again")
+
+
+def ui_get_sweep_preimage_or_private_key(
+    input, sweep_receipt_hash, clawback_public_key
+):
+    while 1:
+        r = input("> ").strip().lower()
+        if r == "quit":
+            return None, None, True
+        try:
+            p = int(r, 16) % GROUP_ORDER
+            private_key = private_key_for_secret(p)
+            if private_key.get_g1() == clawback_public_key:
+                return None, p, False
+            b = fromhex(r)
+            if hashlib.sha256(b).digest() == sweep_receipt_hash:
+                return b, None, False
+        except Exception:
+            pass
+        print("this isn't the private key nor the pre-image")
+        print("each is a 64 character hex string")
 
 
 # ### end ui
@@ -401,7 +444,7 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos):
     print()
 
     print("enter your counter-party's public key as pasted by them")
-    sweep_public_key = ui_get_pubkey_with_sig(logfile)
+    sweep_public_key = ui_get_pubkey_with_sig(logfile, clawback_public_key)
     print()
 
     total_pubkey = sweep_public_key + clawback_public_key
@@ -490,7 +533,6 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos):
     print(f"after {hours} hours.")
     print()
     print(f"clawback spend bundle: {spend_bundle_hex}")
-    # spend_bundle.debug()
     return
 
 
@@ -504,7 +546,7 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos):
     print()
 
     print("enter your counter-party's public key as pasted by them")
-    clawback_public_key = ui_get_pubkey_with_sig(logfile)
+    clawback_public_key = ui_get_pubkey_with_sig(logfile, sweep_public_key)
     print()
 
     total_pubkey = sweep_public_key + clawback_public_key
@@ -553,14 +595,16 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos):
     print(f"private key: 0x{s:064x}")
     print()
 
-    print("Enter the lightning invoice receipt preimage")
-    sweep_preimage = ui_get_sweep_preimage(logfile, sweep_receipt_hash)
-
     print()
     print("Enter an address where your XCH will be delivered.")
     print("It can be an address from a wallet or an exchange.")
     print()
     sweep_puzzle_hash = ui_get_puzzle_hash(logfile, "XCH address > ")
+    print()
+
+    print("Once you've paid the lightning invoice, ask your counterparty to")
+    print("share their private key. Meanwhile, look up your lightning invoice")
+    print("receipt pre-image in case your counterparty doesn't respond.")
     print()
 
     # TODO: fix these next two lines
@@ -574,6 +618,67 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos):
         + ADDITIONAL_DATA
     )
 
+    while True:
+        print(
+            "Enter your counterparty private key OR the lightning invoice receipt pre-image or `quit`"
+        )
+        (
+            sweep_preimage,
+            remote_secret,
+            should_quit,
+        ) = ui_get_sweep_preimage_or_private_key(
+            logfile, sweep_receipt_hash, clawback_public_key
+        )
+
+        if should_quit:
+            break
+
+        if sweep_preimage:
+            handle_sweep_preimage(
+                s,
+                puzzle_hash,
+                parent_coin_id,
+                xch_amount_mojos,
+                total_pubkey,
+                clawback_delay_seconds,
+                clawback_public_key,
+                sweep_receipt_hash,
+                sweep_public_key,
+                conditions,
+                sweep_preimage,
+            )
+
+        if remote_secret:
+            handle_remote_secret(
+                coin_spend,
+                message,
+                remote_secret,
+                s,
+                synthetic_offset,
+                parent_coin_id,
+                xch_amount_mojos,
+                total_pubkey,
+                clawback_delay_seconds,
+                clawback_public_key,
+                sweep_receipt_hash,
+                sweep_public_key,
+                conditions,
+            )
+
+
+def handle_sweep_preimage(
+    my_secret,
+    puzzle_hash,
+    parent_coin_id,
+    xch_amount_mojos,
+    total_pubkey,
+    clawback_delay_seconds,
+    clawback_public_key,
+    sweep_receipt_hash,
+    sweep_public_key,
+    conditions,
+    sweep_preimage,
+):
     spend_bundle = generate_spendbundle(
         parent_coin_id,
         xch_amount_mojos,
@@ -593,20 +698,35 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos):
         + ADDITIONAL_DATA
     )
 
-    total_sig = blspy.AugSchemeMPL.sign(private_key_for_secret(s), message)
+    private_key = private_key_for_secret(my_secret)
+    total_sig = blspy.AugSchemeMPL.sign(private_key, message)
     spend_bundle = SpendBundle(spend_bundle.coin_spends, total_sig)
 
     spend_bundle_hex = bytes(spend_bundle).hex()
     print(f"sweep spend bundle: {spend_bundle_hex}")
-    # spend_bundle.debug()
     print()
     print("Your counterparty should share their (disposable) private key")
     print("with you now. If your counterparty disappears before sending it,")
     print("you can use the spend bundle above as a last resort.")
     print()
 
-    remote_secret = ui_get_private_key(logfile, clawback_public_key)
-    total_secret = remote_secret + s + synthetic_offset
+
+def handle_remote_secret(
+    coin_spend,
+    message,
+    remote_secret,
+    my_secret,
+    synthetic_offset,
+    parent_coin_id,
+    xch_amount_mojos,
+    total_pubkey,
+    clawback_delay_seconds,
+    clawback_public_key,
+    sweep_receipt_hash,
+    sweep_public_key,
+    conditions,
+):
+    total_secret = remote_secret + my_secret + synthetic_offset
 
     total_private_key = private_key_for_secret(total_secret)
 
@@ -616,7 +736,6 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos):
 
     total_sig = blspy.AugSchemeMPL.sign(total_private_key, message)
     clean_spend_bundle = SpendBundle([coin_spend], total_sig)
-    # clean_spend_bundle.debug()
     print(f"clean spend bundle: {bytes(clean_spend_bundle).hex()}")
     print()
     print("Use the spend bundle above because it's smaller and is")

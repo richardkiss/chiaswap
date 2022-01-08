@@ -208,10 +208,17 @@ async def push_tx_to_host(
         return msg
 
 
+def show_coins_spent(spend_bundle):
+    for coin_spend in spend_bundle.coin_spends:
+        coin = coin_spend.coin
+        print(f"spending coin id 0x{coin.name().hex()}")
+
+
 async def async_main(args, parser):
     spend_bundle = args.spend_bundle[0]
     if args.debug:
         spend_bundle.debug()
+    show_coins_spent(spend_bundle)
     if not args.dry_run:
         await push_tx(spend_bundle)
 
