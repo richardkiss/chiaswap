@@ -3,6 +3,7 @@
 import datetime
 import hashlib
 import json
+import time
 import re
 import os
 import secrets
@@ -60,11 +61,17 @@ def fromhex(s):
         s = f"0{s}"
     return bytes.fromhex(s)
 
+
 def get_coins_from_address(address):
+    root_url = "https://api2.spacescan.io"
+    addr_url = f"{root_url}/1/xch/address/txns"
+    coin_url = f"{root_url}/1/xch/coin"
+    # Fetch txns for address
     try:
-        resp = urllib.request.urlopen(f"https://api.aggsig.me/address/{address}", timeout=10)
-        if resp.getcode() == 200:
-            return json.load(resp)["coin_records"]
+        resp = urllib.request.urlopen(f"{addr_url}/{address}", timeout=10)
+        if resp.status == 200:
+            return json.load(resp)["data"]["coins"][::-1]
+            
     except urllib.error.HTTPError as e:
         pass
 
@@ -480,12 +487,11 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos):
     print()
     while True:
         print("Looking up parent coin ID...")
-        coin_recs = get_coins_from_address(address)
-        if coin_recs:
-            coin_rec = next((cr for cr in coin_recs if cr["coin"]["amount"] == xch_amount_mojos),
-                            None)
-            if coin_rec:
-                parent_coin_id = coin_rec["coin"]["parent_coin_info"]
+        txns = get_coins_from_address(address)
+        if txns:
+            tx = next((tx for tx in txns if int(tx["amount"]) == xch_amount_mojos))
+            if tx:
+                parent_coin_id = tx['coin_parent']
                 break
         else:
             time.sleep(10)
