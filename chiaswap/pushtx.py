@@ -197,6 +197,8 @@ async def push_tx_to_host(
             ("ConnectionResetError", "reset"),
             ("TimeoutError", "timeout"),
             ("ClientConnectorError", "client-error"),
+            ("ServerDisconnectedError", "peer-dropped"),
+            ("ClientConnectorCertificateError", "bad-cert"),
         ]
         msg = repr(ex)
         for s, r in exception_map:
