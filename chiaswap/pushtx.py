@@ -89,10 +89,11 @@ async def push_tx(spend_bundle: SpendBundle):
         if lp == 0:
             del d["pending"]
         s = ", ".join("%s: %d" % (k, v) for k, v in sorted(d.items()))
-        print(s)
+        print(f"{s}   ", end="\r")
         if len(pending) == 0:
             break
         jobs = list(pending)
+    return "ack.None" not in d.keys()
 
 
 async def push_tx_to_host(
