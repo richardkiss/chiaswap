@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
+import asyncio
 import datetime
 import hashlib
 import json
 import re
 import os
 import secrets
+import time
 import urllib.request
 
 from decimal import Decimal
@@ -28,6 +30,7 @@ from chia.wallet.puzzles.p2_delegated_puzzle_or_hidden_puzzle import (
 from chia.wallet.puzzles.load_clvm import load_clvm
 
 from .bech32m import bech32_decode, convertbits
+from .pushtx import push_tx
 
 
 GROUP_ORDER = 0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000001
@@ -106,8 +109,6 @@ def ui_get_logfile():
             line, file_lines = file_lines[0], file_lines[1:]
             if line.startswith("#"):
                 continue
-            import time
-
             time.sleep(0.125)
             print("%s%s" % (msg, line))
             return line[:-1]
@@ -253,6 +254,11 @@ def ui_get_sweep_preimage_or_private_key(
             pass
         print("this isn't the private key nor the pre-image")
         print("each is a 64 character hex string")
+
+
+def ui_should_send_spend_bundle():
+    r = input("send this spend bundle? (Y/N) > ")
+    return r.lower().startswith("y")
 
 
 # ### end ui
@@ -513,7 +519,27 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos):
     print(f"after {hours} hours.")
     print()
     print(f"clawback spend bundle: {spend_bundle_hex}")
-    return
+    print()
+    print(f"waiting {clawback_delay_seconds} s then pushing the clawback spend bundle")
+    print(f"Leave this window open or control-c to exit.")
+    print()
+    print(f"Warning: if you answer before {clawback_delay_seconds} seconds have elapsed,")
+    print("the spend bundle will be rejected. No harm done though, you'll just have to try later.")
+    if ui_should_send_spend_bundle():
+        try_to_push_tx(spend_bundle, clawback_puzzle_hash)
+
+
+def try_to_push_tx(sb, dest_puzzle_hash):
+    print()
+    print(f"Check your wallet or an explorer to confirm.")
+    address = encode_puzzle_hash(dest_puzzle_hash, "xch")
+    print(f"https://chia.tt/info/address/{address}")
+    print()
+    r = asyncio.run(push_tx(sb))
+    if r == 0:
+        print("It seems to have worked.")
+    else:
+        print("*** The spend bundle may not have been accepted.")
 
 
 def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos):
@@ -614,7 +640,7 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos):
             break
 
         if sweep_preimage:
-            handle_sweep_preimage(
+            sweep_spend_bundle = handle_sweep_preimage(
                 s,
                 puzzle_hash,
                 parent_coin_id,
@@ -627,9 +653,17 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos):
                 conditions,
                 sweep_preimage,
             )
+            print("You should wait for your counterparty to send their private key")
+            print("and only use this spend bundle if they seem non-responsive.")
+            print(
+                f"Warning: after {clawback_delay_seconds} s they can claw back the XCH"
+            )
+            print()
+            if ui_should_send_spend_bundle():
+                try_to_push_tx(sweep_spend_bundle, sweep_puzzle_hash)
 
         if remote_secret:
-            handle_remote_secret(
+            clean_spend_bundle = handle_remote_secret(
                 coin_spend,
                 message,
                 remote_secret,
@@ -644,6 +678,9 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos):
                 sweep_public_key,
                 conditions,
             )
+            print()
+            if ui_should_send_spend_bundle():
+                try_to_push_tx(clean_spend_bundle, sweep_puzzle_hash)
 
 
 def handle_sweep_preimage(
@@ -689,6 +726,7 @@ def handle_sweep_preimage(
     print("with you now. If your counterparty disappears before sending it,")
     print("you can use the spend bundle above as a last resort.")
     print()
+    return spend_bundle
 
 
 def handle_remote_secret(
@@ -716,11 +754,13 @@ def handle_remote_secret(
 
     total_sig = blspy.AugSchemeMPL.sign(total_private_key, message)
     clean_spend_bundle = SpendBundle([coin_spend], total_sig)
-    print(f"clean spend bundle: {bytes(clean_spend_bundle).hex()}")
+    spend_bundle_hex = bytes(clean_spend_bundle).hex()
+    print(f"clean spend bundle: {spend_bundle_hex}")
     print()
     print("Use the spend bundle above because it's smaller and is")
     print("indistinguishable from standard spend, so will give")
     print("the participants (you) more privacy.")
+    return clean_spend_bundle
 
 
 def main():
