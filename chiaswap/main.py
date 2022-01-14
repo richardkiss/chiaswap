@@ -523,8 +523,12 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos):
     print(f"waiting {clawback_delay_seconds} s then pushing the clawback spend bundle")
     print(f"Leave this window open or control-c to exit.")
     print()
-    print(f"Warning: if you answer before {clawback_delay_seconds} seconds have elapsed,")
-    print("the spend bundle will be rejected. No harm done though, you'll just have to try later.")
+    print(
+        f"Warning: if you answer before {clawback_delay_seconds} seconds have elapsed,"
+    )
+    print(
+        "the spend bundle will be rejected. No harm done though, you'll just have to try later."
+    )
     if ui_should_send_spend_bundle():
         try_to_push_tx(spend_bundle, clawback_puzzle_hash)
 
