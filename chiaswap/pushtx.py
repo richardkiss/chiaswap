@@ -23,6 +23,8 @@ from chia.util.ints import uint16, uint8
 
 DNS_INTRODUCER_HOSTNAME = "dns-introducer.chia.net"
 
+DEBUG_PEER_PROTOCOL = 0
+
 
 def remote_host_ipv4():
     r = socket.getaddrinfo(DNS_INTRODUCER_HOSTNAME, 8444)
@@ -83,16 +85,22 @@ async def push_tx(spend_bundle: SpendBundle):
                 rv = t.result()
             except Exception as ex:
                 rv = str(ex)
-            d[rv] = d.setdefault(rv, 0) + 1
+            if DEBUG_PEER_PROTOCOL:
+                d_key = rv
+            else:
+                # simplify output to "ok" and "failed"
+                d_key = "ok" if "ack.None" == rv else "failed"
+            d[d_key] = d.setdefault(d_key, 0) + 1
         lp = len(pending)
         d["pending"] = lp
         if lp == 0:
             del d["pending"]
         s = ", ".join("%s: %d" % (k, v) for k, v in sorted(d.items()))
-        print(f"{s}   ", end="\r")
+        print(f"{s}                  ", end="\r")
         if len(pending) == 0:
             break
         jobs = list(pending)
+    print()
     return "ack.None" not in d.keys()
 
 
@@ -166,7 +174,6 @@ async def push_tx_to_host(
             # print(message_type)
             if str(message_type) == "transaction_ack":
                 v = wallet_protocol.TransactionAck.from_bytes(full_message_loaded.data)
-                # breakpoint()
                 ack_map = {
                     "ALREADY_INCLUDING_TRANSACTION": "included",
                     "DOUBLE_SPEND": "double-spend",
@@ -205,9 +212,10 @@ async def push_tx_to_host(
         for s, r in exception_map:
             if msg.startswith(s):
                 return r
-        print(f"unknown `msg`, consider diagnosing and adding code for this case")
-        print("Dropping into debugger; enter `c` to continue `pushtx`")
-        breakpoint()
+        if DEBUG_PEER_PROTOCOL:
+            print(f"unknown `msg`, consider diagnosing and adding code for this case")
+            print("Dropping into debugger; enter `c` to continue `pushtx`")
+            breakpoint()
         return msg
 
 
@@ -215,6 +223,7 @@ def show_coins_spent(spend_bundle):
     for coin_spend in spend_bundle.coin_spends:
         coin = coin_spend.coin
         print(f"spending coin id 0x{coin.name().hex()}")
+    print()
 
 
 async def async_main(args, parser):
