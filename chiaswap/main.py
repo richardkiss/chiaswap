@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import asyncio
+import concurrent.futures
 import datetime
 import hashlib
 import json
@@ -45,7 +46,6 @@ OWNERSHIP_MESSAGE = b"I own this key"
 
 
 def lookup_xch_prices():
-    print("prices from cryptocompare.com")
     prices = json.load(
         urllib.request.urlopen(
             "https://min-api.cryptocompare.com/data/price?fsym=XCH&tsyms=USD,BTC"
@@ -129,8 +129,8 @@ def ui_choose(input):
             return int(choice)
 
 
-def ui_get_amounts(input):
-    prices = lookup_xch_prices()
+def ui_get_amounts(input, prices):
+    print("prices from cryptocompare.com")
     BTC_PER_XCH = prices["BTC"]
     USD_PER_XCH = prices["USD"]
     USD_PER_BTC = USD_PER_XCH / BTC_PER_XCH
@@ -764,8 +764,12 @@ def handle_remote_secret(
 
 
 def main():
-    logfile, secret_key = ui_get_logfile()
-    btc_amount, xch_amount = ui_get_amounts(logfile)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        prices_future = executor.submit(lookup_xch_prices)
+        logfile, secret_key = ui_get_logfile()
+
+    prices = prices_future.result()
+    btc_amount, xch_amount = ui_get_amounts(logfile, prices)
     xch_amount_mojos = int(xch_amount * Decimal(1e12))
     which_way = ui_choose(logfile)
     print()
