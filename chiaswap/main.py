@@ -5,11 +5,13 @@ import concurrent.futures
 import datetime
 import hashlib
 import json
+import time
 import re
 import os
 import secrets
 import time
 import urllib.request
+import urllib.error
 
 from decimal import Decimal
 from typing import Tuple
@@ -61,6 +63,22 @@ def fromhex(s):
     if len(s) & 1 == 1:
         s = f"0{s}"
     return bytes.fromhex(s)
+
+
+def get_coins_from_address(address):
+    root_url = "https://api2.spacescan.io"
+    addr_url = f"{root_url}/1/xch/address/txns"
+    coin_url = f"{root_url}/1/xch/coin"
+    # Fetch txns for address
+    try:
+        resp = urllib.request.urlopen(f"{addr_url}/{address}", timeout=10)
+        if resp.status == 200:
+            return json.load(resp)["data"]["coins"][::-1]
+            
+    except urllib.error.HTTPError as e:
+        pass
+
+
 
 
 # ### ui
@@ -471,14 +489,22 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos):
     print(f"go into your XCH wallet and send {xch_amount} XCH to")
     print(f"{address}")
     print()
-    print("Go to an explorer and look up the parent coin info/name (32 byte hex)")
-    print(f"https://chia.tt/info/address/{address}")
-    print(" => then click on `Coin Name`")
-    # print(f"https://xchscan.com/address/{address} (not sure how to find it here)")
-    # print(f"https://www.chiaexplorer.com/blockchain/address/{address} (not sure how to find it here)")
+    input("Once confirmed, press <enter> to continue")
     print()
-    print("Enter it below")
-    parent_coin_id = ui_get_parent_coin_id(logfile)
+    while True:
+        print("Looking up parent coin ID...")
+        txns = get_coins_from_address(address)
+        if txns:
+            tx = next((tx for tx in txns if int(tx["amount"]) == xch_amount_mojos))
+            if tx:
+                parent_coin_id = tx['coin_parent']
+                break
+        else:
+            time.sleep(10)
+    print()
+    print(f"Found parent coin ID: {parent_coin_id}")
+
+    # TODO: save parent_coin_id to logfile.
 
     print()
     print("You need to enter a refund address where your XCH will be returns if")
