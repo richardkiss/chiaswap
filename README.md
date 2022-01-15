@@ -13,7 +13,7 @@ Wallets Tested
 
 Lightning:
 - [Muun](https://muun.com/) confirmed on iOS to work in both directions
-- ~~[BlueWallet](https://bluewallet.io/)~~ confirmed *not* working, as BlueWallet to BlueWallet payments do not reveal the pre-image needed to sweep the XCH funds
+- ~~[BlueWallet](https://bluewallet.io/)~~ confirmed *not* working, as BlueWallet to BlueWallet payments do not reveal the pre-image needed to sweep the XCH funds. You can use BlueWallet if you're selling BTC for XCH, but not the other way unless you are 100% sure your counterparty is not also using BlueWallet.
 - ~~[Strike](https://strike.me/en/)~~ confirmed *not* working. There's no way to see the receipt pre-image, and the 57s timeout for payment requests is too low.
 
 XCH:
@@ -43,15 +43,14 @@ $ xchswap
 
 Answer the questions.
 
-If you are claiming XCH (either through clawback for a failed swap or on the XCH receiving end of a completed swap), you will be given a `SpendBundle` hex dump. You can push that to the network using the `pushtx` tool.
+If you are claiming XCH (either through clawback for a failed swap or on the XCH receiving end of a completed swap), you will be given a `SpendBundle` hex dump and the option to push it to the network.
+
+You can push a `SpendBundle` to the network manually using the `pushtx` tool.
 
 ```
 $ source venv/bin/activate  # if you're not in the venv yet
 $ pushtx 000000012...(lots of SpendBundle hex)...f4
 ```
-
-The `pushtx` tool is a bit of a hack at the moment, and the output is not great. Use an explorer to verify the spend is in the mempool (the tool prints the coin ids that are being spent).
-
 
 How It Works
 ------------
