@@ -101,7 +101,7 @@ async def push_tx(spend_bundle: SpendBundle):
             break
         jobs = list(pending)
     print()
-    return "ack.None" not in d.keys()
+    return all(_ not in d.keys() for _ in ["ack.None", "ok"])
 
 
 async def push_tx_to_host(
