@@ -65,20 +65,19 @@ def fromhex(s):
     return bytes.fromhex(s)
 
 
-def get_coins_from_address(address):
+def wait_for_payments_to_address(address, min_amount):
     root_url = "https://api2.spacescan.io"
     addr_url = f"{root_url}/1/xch/address/txns"
-    coin_url = f"{root_url}/1/xch/coin"
-    # Fetch txns for address
-    try:
+    while 1:
+        print(f"checking for payments to {address}")
         resp = urllib.request.urlopen(f"{addr_url}/{address}", timeout=10)
         if resp.status == 200:
-            return json.load(resp)["data"]["coins"][::-1]
-            
-    except urllib.error.HTTPError as e:
-        pass
-
-
+            coins = json.load(resp, parse_float=Decimal)["data"]["coins"][::-1]
+            for coin in coins:
+                amount = int(coin["amount"])
+                if amount >= min_amount:
+                    return [coin]
+        time.sleep(5)
 
 
 # ### ui
@@ -185,18 +184,6 @@ def ui_get_lightning_payment_request(input):
         if validate_lpr(r):
             return r
         print("invalid")
-
-
-def ui_get_parent_coin_id(input):
-    while 1:
-        r = input("parent id> ")
-        try:
-            b = fromhex(r)
-            if len(b) == 32:
-                return b
-        except Exception:
-            pass
-        print("parent coin id is a 64 character hex string")
 
 
 def ui_get_private_key(input, public_key):
@@ -489,22 +476,9 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos):
     print(f"go into your XCH wallet and send {xch_amount} XCH to")
     print(f"{address}")
     print()
-    input("Once confirmed, press <enter> to continue")
-    print()
-    while True:
-        print("Looking up parent coin ID...")
-        txns = get_coins_from_address(address)
-        if txns:
-            tx = next((tx for tx in txns if int(tx["amount"]) == xch_amount_mojos))
-            if tx:
-                parent_coin_id = tx['coin_parent']
-                break
-        else:
-            time.sleep(10)
-    print()
-    print(f"Found parent coin ID: {parent_coin_id}")
+    coins = wait_for_payments_to_address(address, xch_amount_mojos)
 
-    # TODO: save parent_coin_id to logfile.
+    parent_coin_id = fromhex(coins[0]["coin_parent"])
 
     print()
     print("You need to enter a refund address where your XCH will be returns if")
@@ -618,8 +592,9 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos):
     #    f"https://www.chiaexplorer.com/blockchain/address/{address} (not sure how to find it here)"
     # )
     print()
-    print("Enter it below")
-    parent_coin_id = ui_get_parent_coin_id(logfile)
+    coins = wait_for_payments_to_address(address, xch_amount_mojos)
+    parent_coin_id = fromhex(coins[0]["coin_parent"])
+
     print()
     print("Once your XCH has enough confirmations, pay the lightning invoice.")
     print()
