@@ -162,7 +162,7 @@ def ui_get_amounts(input, prices):
     xch_amount = Decimal(input("How much XCH is being traded? > "))
     btc_amount = xch_amount * BTC_PER_XCH
     print(
-        "%s XCH worth about %0.6f btc (USD$%0.2f)"
+        "%0.13f XCH worth about %0.8f btc (USD$%0.2f)"
         % (xch_amount, btc_amount, USD_PER_XCH * xch_amount)
     )
     print()
@@ -445,7 +445,6 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos):
 
     print("enter your counter-party's public key as pasted by them")
     sweep_public_key = ui_get_pubkey_with_sig(logfile, clawback_public_key)
-    print()
 
     total_pubkey = sweep_public_key + clawback_public_key
 
@@ -472,21 +471,18 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos):
     puzzle_hash = puzzle_reveal.get_tree_hash()
     address = encode_puzzle_hash(puzzle_hash, "xch")
     xch_amount = Decimal(xch_amount_mojos) / Decimal(int(1e12))
-    print()
+
     print(f"go into your XCH wallet and send {xch_amount} XCH to")
     print(f"{address}")
     print()
-    coins = wait_for_payments_to_address(address, xch_amount_mojos)
 
-    parent_coin_id = fromhex(coins[0]["coin_parent"])
-
-    print()
     print("You need to enter a refund address where your XCH will be returns if")
     print("the swap fails. It can be an address from a wallet or an exchange.")
     print()
-
     clawback_puzzle_hash = ui_get_puzzle_hash(logfile, "enter XCH refund address > ")
 
+    coins = wait_for_payments_to_address(address, xch_amount_mojos)
+    parent_coin_id = fromhex(coins[0]["coin_parent"])
     conditions = [[51, clawback_puzzle_hash, xch_amount_mojos]]
 
     spend_bundle = generate_spendbundle(
@@ -537,7 +533,7 @@ def try_to_push_tx(sb, dest_puzzle_hash):
     print()
     print(f"Check your wallet or an explorer to confirm.")
     address = encode_puzzle_hash(dest_puzzle_hash, "xch")
-    print(f"https://chia.tt/info/address/{address}")
+    print(f"https://www.spacescan.io/xch/address/{address}")
     print()
     r = asyncio.run(push_tx(sb))
     if r == 0:
@@ -557,14 +553,11 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos):
 
     print("enter your counter-party's public key as pasted by them")
     clawback_public_key = ui_get_pubkey_with_sig(logfile, sweep_public_key)
-    print()
 
     total_pubkey = sweep_public_key + clawback_public_key
 
-    print()
     print("Paste the lightning payment request from your counter-party here.")
     lpr = ui_get_lightning_payment_request(logfile)
-    print()
     d = parse_lpr(lpr)
     sweep_receipt_hash = d[1]
 
@@ -581,16 +574,18 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos):
     puzzle_hash = puzzle_reveal.get_tree_hash()
     address = encode_puzzle_hash(puzzle_hash, "xch")
     xch_amount = Decimal(xch_amount_mojos) / Decimal(int(1e12))
-    print(f"Your counter-party should be sending {xch_amount} XCH to the address")
+
+    print("Enter an address where your XCH will be delivered.")
+    print("It can be an address from a wallet or an exchange.")
+    print()
+    sweep_puzzle_hash = ui_get_puzzle_hash(logfile, "XCH address > ")
+
+    print(f"Your counter-party should be sending {xch_amount:.13f} XCH to the address")
     print(f"{address}")
     print()
-    print("Go to an explorer and look up the parent coin info/name (32 byte hex)")
-    print(f"https://chia.tt/info/address/{address}")
-    print(" => then click on `Coin Name`")
-    # print(f"https://xchscan.com/address/{address} (not sure how to find it here)")
-    # print(
-    #    f"https://www.chiaexplorer.com/blockchain/address/{address} (not sure how to find it here)"
-    # )
+    print("Go to an explorer and watch for payments")
+    print()
+    print(f"https://www.spacescan.io/xch/address/{address}")
     print()
     coins = wait_for_payments_to_address(address, xch_amount_mojos)
     parent_coin_id = fromhex(coins[0]["coin_parent"])
@@ -604,13 +599,6 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos):
     print()
 
     print(f"private key: 0x{s:064x}")
-    print()
-
-    print()
-    print("Enter an address where your XCH will be delivered.")
-    print("It can be an address from a wallet or an exchange.")
-    print()
-    sweep_puzzle_hash = ui_get_puzzle_hash(logfile, "XCH address > ")
     print()
 
     print("Once you've paid the lightning invoice, ask your counterparty to")
@@ -753,8 +741,6 @@ def handle_remote_secret(
 
     total_private_key = private_key_for_secret(total_secret)
 
-    print()
-
     # build local signatures
 
     total_sig = blspy.AugSchemeMPL.sign(total_private_key, message)
@@ -777,7 +763,7 @@ def main():
     btc_amount, xch_amount = ui_get_amounts(logfile, prices)
     xch_amount_mojos = int(xch_amount * Decimal(1e12))
     which_way = ui_choose(logfile)
-    print()
+
     f = have_xch_want_btc if which_way == 1 else have_btc_want_xch
     f(logfile, secret_key, btc_amount, xch_amount_mojos)
 
