@@ -5,7 +5,7 @@
 ;; The "clawback" key is only valid after a timeout of `CLAWBACK_DELAY_SECONDS`, using
 ;; the `ASSERT_SECONDS_RELATIVE` condition.
 ;;
-;; The "sweep" public key has a corresponding secret `sweep_preimage`, commited to by
+;; The "sweep" public key has a corresponding secret `sweep_preimage`, committed to by
 ;; `SWEEP_RECEIPT_HASH`. To use this key, the `sweep_preimage` must be revealed.
 ;;
 ;; With this puzzle, two parties can do an atomic swap based on a pre-image reveal in a
