@@ -12,13 +12,13 @@ Wallets Tested
 --------------
 
 Lightning:
-- [Muun](https://muun.com/) confirmed on iOS to work in both directions
+- [Muun](https://muun.com/) confirmed on both iOS and Android to work in both directions
 - ~~[BlueWallet](https://bluewallet.io/)~~ confirmed *not* working, as BlueWallet to BlueWallet payments do not reveal the pre-image needed to sweep the XCH funds. You can use BlueWallet if you're selling BTC for XCH, but not the other way unless you are 100% sure your counterparty is not also using BlueWallet.
 - ~~[Strike](https://strike.me/en/)~~ confirmed *not* working. There's no way to see the receipt pre-image, and the 57s timeout for payment requests is too low.
 
 XCH:
-- [Nucle](https://apps.apple.com/us/app/nucle-chia-crypto-wallet/id1582583173) has been confirmed to work in both directions
-- the official [Chia](https://chia.net/) wallet should work although it hasn't been confirmed
+- [Nucle](https://apps.apple.com/us/app/nucle-chia-crypto-wallet/id1582583173) has been confirmed to work in both directions.
+- The official [Chia](https://chia.net/) wallet has been confirmed to work in both directions.
 
 
 Install
