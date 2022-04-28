@@ -19,7 +19,7 @@ env = Environment(
 
 # Only *.py is included automatically by setup2toml.
 # Add extra 'purelib' files or package_data here.
-py_source = Glob("chiaswap/*.py") + Glob("chiaswap/*.cl")
+py_source = Glob("chiaswap/*.py") + Glob("chiaswap/*.clsp")
 
 chiaswap = env.Whl("purelib", py_source, root="")
 whl = env.WhlFile(source=chiaswap)
@@ -37,4 +37,4 @@ env.Alias("sdist", sdist)
 env.Default(whl, sdist)
 
 
-# TODO: run -d chiaswap/p2_delayed_or_preimage.cl > chiaswap/p2_delayed_or_preimage.cl.hex
+# TODO: run -d chiaswap/p2_delayed_or_preimage.clsp > chiaswap/p2_delayed_or_preimage.clsp.hex
