@@ -38,7 +38,7 @@ from .pushtx import push_tx
 
 GROUP_ORDER = 0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000001
 
-P2_DELAYED_OR_PREIMAGE = load_clvm("p2_delayed_or_preimage.clsp", __name__)
+P2_DELAYED_OR_PREIMAGE = load_clvm("p2_delayed_or_preimage.cl", __name__)
 
 ADDITIONAL_DATA = bytes.fromhex(
     "ccd5bb71183532bff220ba46c268991a3ff07eb358e8255a65c30a2dce0e5fbb"
@@ -160,16 +160,13 @@ def ui_get_amounts(input, prices):
     )
     print()
     xch_amount = Decimal(input("How much XCH is being traded? > "))
-    print("How much XCH fee (default: 0.00005 mojos)?")
-    print("(You should agree your fee with your counter-party. The fee will be used for either clawback, clean, or sweep spend.)")
-    fee_amount = Decimal(input("> ") or "0.00005")
     btc_amount = xch_amount * BTC_PER_XCH
     print(
         "%0.13f XCH worth about %0.8f btc (USD$%0.2f)"
         % (xch_amount, btc_amount, USD_PER_XCH * xch_amount)
     )
     print()
-    return btc_amount, xch_amount, fee_amount
+    return btc_amount, xch_amount
 
 
 def ui_get_puzzle_hash(input, msg):
@@ -394,7 +391,6 @@ def generate_holding_address(
 def generate_spendbundle(
     parent_coin_id,
     xch_amount_mojos,
-    fee_amount_mojos,
     total_pubkey,
     clawback_delay_seconds,
     clawback_public_key,
@@ -413,7 +409,7 @@ def generate_spendbundle(
     )
     puzzle_hash = puzzle_reveal.get_tree_hash()
 
-    coin = Coin(parent_coin_id, puzzle_hash, xch_amount_mojos + fee_amount_mojos)
+    coin = Coin(parent_coin_id, puzzle_hash, xch_amount_mojos)
     solution = clawback_or_sweep_solution(
         total_pubkey,
         clawback_delay_seconds,
@@ -439,7 +435,7 @@ def sign_spend_bundle(coin_spend, conditions, secret, additional_data):
     return SpendBundle([coin_spend], total_sig)
 
 
-def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amount_mojos):
+def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos):
     s = secret_key
     clawback_public_key, my_pubkey_string = signed_pubkey_for_secret(s)
     print("Send the long line below to your counter-party. It contains your")
@@ -475,9 +471,8 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amo
     puzzle_hash = puzzle_reveal.get_tree_hash()
     address = encode_puzzle_hash(puzzle_hash, "xch")
     xch_amount = Decimal(xch_amount_mojos) / Decimal(int(1e12))
-    fee_amount = Decimal(fee_amount_mojos) / Decimal(int(1e12))
 
-    print(f"go into your XCH wallet and send {xch_amount + fee_amount} XCH to")
+    print(f"go into your XCH wallet and send {xch_amount} XCH to")
     print(f"{address}")
     print()
 
@@ -486,14 +481,13 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amo
     print()
     clawback_puzzle_hash = ui_get_puzzle_hash(logfile, "enter XCH refund address > ")
 
-    coins = wait_for_payments_to_address(address, xch_amount_mojos + fee_amount_mojos)
+    coins = wait_for_payments_to_address(address, xch_amount_mojos)
     parent_coin_id = fromhex(coins[0]["coin_parent"])
     conditions = [[51, clawback_puzzle_hash, xch_amount_mojos]]
 
     spend_bundle = generate_spendbundle(
         parent_coin_id,
         xch_amount_mojos,
-        fee_amount_mojos,
         total_pubkey,
         clawback_delay_seconds,
         clawback_public_key,
@@ -548,7 +542,7 @@ def try_to_push_tx(sb, dest_puzzle_hash):
         print("*** The spend bundle may not have been accepted.")
 
 
-def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amount_mojos):
+def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos):
     s = secret_key + 1
     sweep_public_key, my_pubkey_string = signed_pubkey_for_secret(s)
 
@@ -580,14 +574,13 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amo
     puzzle_hash = puzzle_reveal.get_tree_hash()
     address = encode_puzzle_hash(puzzle_hash, "xch")
     xch_amount = Decimal(xch_amount_mojos) / Decimal(int(1e12))
-    fee_amount = Decimal(fee_amount_mojos) / Decimal(int(1e12))
 
     print("Enter an address where your XCH will be delivered.")
     print("It can be an address from a wallet or an exchange.")
     print()
     sweep_puzzle_hash = ui_get_puzzle_hash(logfile, "XCH address > ")
 
-    print(f"Your counter-party should be sending {xch_amount + fee_amount} XCH to the address")
+    print(f"Your counter-party should be sending {xch_amount:.13f} XCH to the address")
     print(f"{address}")
     print()
     print("Go to an explorer and watch for payments")
@@ -616,7 +609,7 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amo
     # TODO: fix these next two lines
     conditions = [[51, sweep_puzzle_hash, xch_amount_mojos]]
 
-    coin = Coin(parent_coin_id, puzzle_hash, xch_amount_mojos + fee_amount_mojos)
+    coin = Coin(parent_coin_id, puzzle_hash, xch_amount_mojos)
     coin_spend = CoinSpend(coin, puzzle_reveal, solution_for_conditions(conditions))
     message = (
         puzzle_for_conditions(conditions).get_tree_hash()
@@ -626,7 +619,7 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amo
 
     while True:
         print(
-            "Enter your counter-party private key OR the lightning invoice receipt pre-image or `quit`"
+            "Enter your counterparty private key OR the lightning invoice receipt pre-image or `quit`"
         )
         (
             sweep_preimage,
@@ -645,7 +638,6 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amo
                 puzzle_hash,
                 parent_coin_id,
                 xch_amount_mojos,
-                fee_amount_mojos,
                 total_pubkey,
                 clawback_delay_seconds,
                 clawback_public_key,
@@ -689,7 +681,6 @@ def handle_sweep_preimage(
     puzzle_hash,
     parent_coin_id,
     xch_amount_mojos,
-    fee_amount_mojos,
     total_pubkey,
     clawback_delay_seconds,
     clawback_public_key,
@@ -701,7 +692,6 @@ def handle_sweep_preimage(
     spend_bundle = generate_spendbundle(
         parent_coin_id,
         xch_amount_mojos,
-        fee_amount_mojos,
         total_pubkey,
         clawback_delay_seconds,
         clawback_public_key,
@@ -711,7 +701,7 @@ def handle_sweep_preimage(
         sweep_preimage,
     )
 
-    coin = Coin(parent_coin_id, puzzle_hash, xch_amount_mojos + fee_amount_mojos)
+    coin = Coin(parent_coin_id, puzzle_hash, xch_amount_mojos)
     message = (
         puzzle_for_conditions(conditions).get_tree_hash()
         + coin.name()
@@ -725,7 +715,7 @@ def handle_sweep_preimage(
     spend_bundle_hex = bytes(spend_bundle).hex()
     print(f"sweep spend bundle: {spend_bundle_hex}")
     print()
-    print("Your counter-party should share their (disposable) private key")
+    print("Your counterparty should share their (disposable) private key")
     print("with you now. If your counterparty disappears before sending it,")
     print("you can use the spend bundle above as a last resort.")
     print()
@@ -770,13 +760,12 @@ def main():
         logfile, secret_key = ui_get_logfile()
 
     prices = prices_future.result()
-    btc_amount, xch_amount, fee_amount = ui_get_amounts(logfile, prices)
-    xch_amount_mojos = int((xch_amount) * Decimal(1e12))
-    fee_amount_mojos = int((fee_amount) * Decimal(1e12))
+    btc_amount, xch_amount = ui_get_amounts(logfile, prices)
+    xch_amount_mojos = int(xch_amount * Decimal(1e12))
     which_way = ui_choose(logfile)
 
     f = have_xch_want_btc if which_way == 1 else have_btc_want_xch
-    f(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amount_mojos)
+    f(logfile, secret_key, btc_amount, xch_amount_mojos)
 
 
 if __name__ == "__main__":
