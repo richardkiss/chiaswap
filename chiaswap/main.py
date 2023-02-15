@@ -161,7 +161,7 @@ def ui_get_amounts(input, prices):
     print()
     xch_amount = Decimal(input("How much XCH is being traded? > "))
     print("How much XCH fee (default: 0.00005 mojos)?")
-    print("(You should agree your fee with your counterparty. The fee will be used for either clawback, clean, or sweep spend.)")
+    print("(You should agree your fee with your counter-party. The fee will be used for either clawback, clean, or sweep spend.)")
     fee_amount = Decimal(input("> ") or "0.00005")
     btc_amount = xch_amount * BTC_PER_XCH
     print(
@@ -191,7 +191,7 @@ def ui_get_lightning_payment_request(input):
 
 def ui_get_private_key(input, public_key):
     while 1:
-        r = input("enter counterparty private key\n> ")
+        r = input("enter counter-party private key\n> ")
         try:
             p = int(r, 16) % GROUP_ORDER
             private_key = private_key_for_secret(p)
@@ -442,12 +442,12 @@ def sign_spend_bundle(coin_spend, conditions, secret, additional_data):
 def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amount_mojos):
     s = secret_key
     clawback_public_key, my_pubkey_string = signed_pubkey_for_secret(s)
-    print("Send the long line below to your counterparty. It contains your")
+    print("Send the long line below to your counter-party. It contains your")
     print("signed public key.")
     print(my_pubkey_string)
     print()
 
-    print("enter your counterparty's public key as pasted by them")
+    print("enter your counter-party's public key as pasted by them")
     sweep_public_key = ui_get_pubkey_with_sig(logfile, clawback_public_key)
 
     total_pubkey = sweep_public_key + clawback_public_key
@@ -512,7 +512,7 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amo
     print("Wait for the lightning invoice payment.")
     print()
     print("When you get it, you can immediately share the private key below with")
-    print("your counterparty to allow them to cleanly claim the XCH funds.")
+    print("your counter-party to allow them to cleanly claim the XCH funds.")
     print()
 
     print(f"private key: 0x{s:064x}")
@@ -552,17 +552,17 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amo
     s = secret_key + 1
     sweep_public_key, my_pubkey_string = signed_pubkey_for_secret(s)
 
-    print("Send the long line below to your counterparty. It contains your")
+    print("Send the long line below to your counter-party. It contains your")
     print("signed public key.")
     print(my_pubkey_string)
     print()
 
-    print("enter your counterparty's public key as pasted by them")
+    print("enter your counter-party's public key as pasted by them")
     clawback_public_key = ui_get_pubkey_with_sig(logfile, sweep_public_key)
 
     total_pubkey = sweep_public_key + clawback_public_key
 
-    print("Paste the lightning payment request from your counterparty here.")
+    print("Paste the lightning payment request from your counter-party here.")
     lpr = ui_get_lightning_payment_request(logfile)
     d = parse_lpr(lpr)
     sweep_receipt_hash = d[1]
@@ -587,7 +587,7 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amo
     print()
     sweep_puzzle_hash = ui_get_puzzle_hash(logfile, "XCH address > ")
 
-    print(f"Your counterparty should be sending {xch_amount + fee_amount} XCH to the address")
+    print(f"Your counter-party should be sending {xch_amount + fee_amount} XCH to the address")
     print(f"{address}")
     print()
     print("Go to an explorer and watch for payments")
@@ -626,7 +626,7 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amo
 
     while True:
         print(
-            "Enter your counterparty private key OR the lightning invoice receipt pre-image or `quit`"
+            "Enter your counter-party private key OR the lightning invoice receipt pre-image or `quit`"
         )
         (
             sweep_preimage,
@@ -725,7 +725,7 @@ def handle_sweep_preimage(
     spend_bundle_hex = bytes(spend_bundle).hex()
     print(f"sweep spend bundle: {spend_bundle_hex}")
     print()
-    print("Your counterparty should share their (disposable) private key")
+    print("Your counter-party should share their (disposable) private key")
     print("with you now. If your counterparty disappears before sending it,")
     print("you can use the spend bundle above as a last resort.")
     print()
