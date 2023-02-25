@@ -18,22 +18,22 @@ from typing import Tuple
 
 import blspy
 
-from chia.types.blockchain_format.coin import Coin
-from chia.types.blockchain_format.program import Program
-from chia.types.spend_bundle import SpendBundle
-from chia.types.coin_spend import CoinSpend
-from chia.util.bech32m import decode_puzzle_hash, encode_puzzle_hash
-from chia.wallet.puzzles.p2_conditions import puzzle_for_conditions
-from chia.wallet.puzzles.p2_delegated_puzzle_or_hidden_puzzle import (
+from clvm_rs import Program
+
+from hsms.contrib.bech32m import bech32_decode, convertbits
+from hsms.streamables.coin import Coin
+from hsms.streamables.coin_spend import CoinSpend
+from hsms.streamables.spend_bundle import SpendBundle
+
+from .p2_conditions import puzzle_for_conditions
+from .p2_delegated_puzzle_or_hidden_puzzle import (
     calculate_synthetic_offset,
     puzzle_for_public_key_and_hidden_puzzle_hash,
     solution_for_conditions,
     solution_for_hidden_puzzle,
 )
-from chia.wallet.puzzles.load_clvm import load_clvm
-
-from .bech32m import bech32_decode, convertbits
-from .pushtx import push_tx
+from .load_clvm import load_clvm
+from .bech32m import encode_puzzle_hash, decode_puzzle_hash
 
 
 GROUP_ORDER = 0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000001
@@ -86,7 +86,7 @@ def wait_for_payments_to_address(address, min_amount):
 def ui_choose_path(possible_paths):
     if len(possible_paths) > 0:
         while 1:
-            print(f" 0. NEW SWAP")
+            print(" 0. NEW SWAP")
             for idx, pp in enumerate(possible_paths):
                 print(f"{(idx+1):2}. {pp}")
             r = input("> ")
@@ -383,7 +383,7 @@ def generate_holding_address(
         sweep_receipt_hash,
         sweep_public_key,
     )
-    hidden_puzzle_hash = hidden_puzzle.get_tree_hash()
+    hidden_puzzle_hash = hidden_puzzle.tree_hash()
     puzzle = puzzle_for_public_key_and_hidden_puzzle_hash(
         total_pubkey, hidden_puzzle_hash
     )
@@ -411,7 +411,7 @@ def generate_spendbundle(
         sweep_receipt_hash,
         sweep_public_key,
     )
-    puzzle_hash = puzzle_reveal.get_tree_hash()
+    puzzle_hash = puzzle_reveal.tree_hash()
 
     coin = Coin(parent_coin_id, puzzle_hash, xch_amount_mojos + fee_amount_mojos)
     solution = clawback_or_sweep_solution(
@@ -430,7 +430,7 @@ def generate_spendbundle(
 
 def sign_spend_bundle(coin_spend, conditions, secret, additional_data):
     message = (
-        puzzle_for_conditions(conditions).get_tree_hash()
+        puzzle_for_conditions(conditions).tree_hash()
         + coin_spend.coin.name()
         + additional_data
     )
@@ -472,7 +472,7 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amo
         sweep_receipt_hash,
         sweep_public_key,
     )
-    puzzle_hash = puzzle_reveal.get_tree_hash()
+    puzzle_hash = puzzle_reveal.tree_hash()
     address = encode_puzzle_hash(puzzle_hash, "xch")
     xch_amount = Decimal(xch_amount_mojos) / Decimal(int(1e12))
     fee_amount = Decimal(fee_amount_mojos) / Decimal(int(1e12))
@@ -523,7 +523,7 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amo
     print(f"clawback spend bundle: {spend_bundle_hex}")
     print()
     print(f"waiting {clawback_delay_seconds} s then pushing the clawback spend bundle")
-    print(f"Leave this window open or control-c to exit.")
+    print("Leave this window open or control-c to exit.")
     print()
     print(
         f"Warning: if you answer before {clawback_delay_seconds} seconds have elapsed,"
@@ -537,7 +537,7 @@ def have_xch_want_btc(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amo
 
 def try_to_push_tx(sb, dest_puzzle_hash):
     print()
-    print(f"Check your wallet or an explorer to confirm.")
+    print("Check your wallet or an explorer to confirm.")
     address = encode_puzzle_hash(dest_puzzle_hash, "xch")
     print(f"https://www.spacescan.io/xch/address/{address}")
     print()
@@ -577,7 +577,7 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amo
         sweep_receipt_hash,
         sweep_public_key,
     )
-    puzzle_hash = puzzle_reveal.get_tree_hash()
+    puzzle_hash = puzzle_reveal.tree_hash()
     address = encode_puzzle_hash(puzzle_hash, "xch")
     xch_amount = Decimal(xch_amount_mojos) / Decimal(int(1e12))
     fee_amount = Decimal(fee_amount_mojos) / Decimal(int(1e12))
@@ -619,7 +619,7 @@ def have_btc_want_xch(logfile, secret_key, btc_amount, xch_amount_mojos, fee_amo
     coin = Coin(parent_coin_id, puzzle_hash, xch_amount_mojos + fee_amount_mojos)
     coin_spend = CoinSpend(coin, puzzle_reveal, solution_for_conditions(conditions))
     message = (
-        puzzle_for_conditions(conditions).get_tree_hash()
+        puzzle_for_conditions(conditions).tree_hash()
         + coin.name()
         + ADDITIONAL_DATA
     )
@@ -713,7 +713,7 @@ def handle_sweep_preimage(
 
     coin = Coin(parent_coin_id, puzzle_hash, xch_amount_mojos + fee_amount_mojos)
     message = (
-        puzzle_for_conditions(conditions).get_tree_hash()
+        puzzle_for_conditions(conditions).tree_hash()
         + coin.name()
         + ADDITIONAL_DATA
     )

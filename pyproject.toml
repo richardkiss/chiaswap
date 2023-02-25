@@ -6,7 +6,7 @@ license = "MIT"
 repository = "https://github.com/richardkiss/chiaswap.git"
 readme = "README.md"
 src_root = "."
-dependencies = ["chia-blockchain==1.6.1"]
+dependencies = ["hsms @ git+https://github.com/Chia-Network/hsms@e4eb4b5079c4b3c619f0a6a34a3933efdb323044#egg=hsms&subdirectory=wheel"]
 packages = ["chiaswap"]
 # version is defined with `setuptools_scm`. See `SConstruct` file.
 
