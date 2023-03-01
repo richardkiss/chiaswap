@@ -93,10 +93,36 @@ async def push_tx(spend_bundle: SpendBundle):
     return all(_ not in d.keys() for _ in ["ack.None", "ok"])
 
 
+def make_outbound_handshake_blob() -> bytes:
+    network_id = "mainnet"
+    protocol_version = "0.0.33"
+    chia_full_version_str = "1.0.0.0"
+    server_port = 1023
+    node_type = NodeType.WALLET
+    capabilities = [(1, "1")]
+    handshake = Handshake(
+        network_id,
+        protocol_version,
+        chia_full_version_str,
+        uint16(server_port),
+        uint8(node_type),
+        capabilities,
+    )
+    outbound_handshake = make_msg(ProtocolMessageTypes.handshake, handshake)
+    return bytes(outbound_handshake)
+
+
+def make_send_transaction_blob(spend_bundle: SpendBundle) -> bytes:
+    msg = make_msg(
+        ProtocolMessageTypes.send_transaction,
+        wallet_protocol.SendTransaction(spend_bundle),
+    )
+    return bytes(msg)
+
+
 async def push_tx_to_host(
     ssl_context, spend_bundle: SpendBundle, remote_host, remote_port
 ):
-
     ws = None
     session = None
     try:
@@ -115,23 +141,8 @@ async def push_tx_to_host(
             max_msg_size=100 * 1024 * 1024,
         )
 
-        network_id = "mainnet"
-        protocol_version = "0.0.33"
-        chia_full_version_str = "1.0.0.0"
-        server_port = 1023
-        node_type = NodeType.WALLET
-        capabilities = [(1, "1")]
-        handshake = Handshake(
-            network_id,
-            protocol_version,
-            chia_full_version_str,
-            uint16(server_port),
-            uint8(node_type),
-            capabilities,
-        )
-
-        outbound_handshake = make_msg(ProtocolMessageTypes.handshake, handshake)
-        await ws.send_bytes(bytes(outbound_handshake))
+        outbound_handshake_blob = make_outbound_handshake_blob()
+        await ws.send_bytes(outbound_handshake_blob)
 
         response: WSMessage = await ws.receive()
         # print(response)
@@ -142,11 +153,8 @@ async def push_tx_to_host(
         # print(full_message_loaded)
 
         # breakpoint()
-        msg = make_msg(
-            ProtocolMessageTypes.send_transaction,
-            wallet_protocol.SendTransaction(spend_bundle),
-        )
-        await ws.send_bytes(bytes(msg))
+        send_transaction_blob = make_send_transaction_blob(spend_bundle)
+        await ws.send_bytes(send_transaction_blob)
         rv = "failed"
         while 1:
             response: WSMessage = await ws.receive()
