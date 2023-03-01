@@ -1,22 +1,21 @@
+from contextlib import ExitStack
+from importlib import resources
+
 import argparse
 import asyncio
-import os
 import socket
-import tempfile
-
-from pathlib import Path
+import ssl
 
 from aiohttp import (
     ClientSession,
     ClientTimeout,
     WSMessage,
 )
-from chia.cmds.init_funcs import create_all_ssl
 from chia.protocols.protocol_message_types import ProtocolMessageTypes
 from chia.protocols.shared_protocol import Handshake
 from chia.protocols import wallet_protocol
 from chia.server.outbound_message import Message, make_msg
-from chia.server.server import ssl_context_for_client, NodeType
+from chia.server.server import NodeType
 from chia.types.spend_bundle import SpendBundle
 from chia.util.ints import uint16, uint8
 
@@ -35,37 +34,27 @@ def remote_host_ipv4():
         yield t
 
 
-def make_ssl_path():
-    # wow, this code sucks, but it's mostly due to the code in the chia module
-    # not being very flexible
-    temp_dir = tempfile.TemporaryDirectory()
-    root_path = Path(temp_dir.name)
-    ssl_dir = root_path / "config" / "ssl"
-    os.makedirs(ssl_dir)
-    create_all_ssl(root_path)
-    # we have to keep `temp_dir` around because the contents
-    # are deleted when it's garbage-collected
-    return temp_dir, root_path
-
-
 def get_ssl_context():
-    _temp_dir, root_path = make_ssl_path()
+    file_stack = ExitStack()
+    certs_dir = resources.files("certs")
 
-    ssl_path = root_path / "config" / "ssl"
-    ca_path = ssl_path / "ca"
-    wallet_path = ssl_path / "wallet"
-    chia_ca_crt_path = ca_path / "chia_ca.crt"
-    chia_ca_key_path = ca_path / "chia_ca.key"
+    def certfile(file_name):
+        return file_stack.enter_context(resources.as_file(certs_dir / file_name))
 
-    crt_path = wallet_path / "public_wallet.crt"
-    key_path = wallet_path / "public_wallet.key"
+    chia_ca_crt_path = certfile("chia_ca.crt")
+    crt_path = certfile("public_wallet.crt")
+    key_path = certfile("public_wallet.key")
 
-    ssl_context = ssl_context_for_client(
-        chia_ca_crt_path, chia_ca_key_path, crt_path, key_path
+    ssl_context = ssl._create_unverified_context(
+        purpose=ssl.Purpose.SERVER_AUTH, cafile=str(chia_ca_crt_path)
     )
-    # we have to keep `temp_dir` around because the contents
-    # are deleted when it's garbage-collected
-    ssl_context.temp_dir = _temp_dir
+    ssl_context.check_hostname = False
+    ssl_context.load_cert_chain(certfile=str(crt_path), keyfile=str(key_path))
+    ssl_context.verify_mode = ssl.CERT_REQUIRED
+
+    # we've read the key and crt files, so they can be trashed now
+    file_stack.close()
+
     return ssl_context
 
 

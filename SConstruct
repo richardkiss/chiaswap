@@ -20,8 +20,10 @@ env = Environment(
 # Only *.py is included automatically by setup2toml.
 # Add extra 'purelib' files or package_data here.
 py_source = Glob("chiaswap/*.py") + Glob("chiaswap/*.clsp")
+certs = Glob("certs/*.key") + Glob("certs/*.crt")
 
-chiaswap = env.Whl("purelib", py_source, root="")
+all_source = py_source + certs
+chiaswap = env.Whl("purelib", all_source, root="")
 whl = env.WhlFile(source=chiaswap)
 
 # It's easier to just use Glob() instead of FindSourceFiles() since we have
