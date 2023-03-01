@@ -6,7 +6,7 @@ license = "MIT"
 repository = "https://github.com/richardkiss/chiaswap.git"
 readme = "README.md"
 src_root = "."
-dependencies = ["chia-blockchain==1.2.11"]
+dependencies = ["chia-blockchain==1.6.1"]
 packages = ["chiaswap"]
 # version is defined with `setuptools_scm`. See `SConstruct` file.
 
