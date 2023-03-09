@@ -33,6 +33,7 @@ from .p2_delegated_puzzle_or_hidden_puzzle import (
 )
 from .load_clvm import load_clvm
 from .bech32m import encode_puzzle_hash, decode_puzzle_hash
+from .pushtx import push_tx
 
 
 GROUP_ORDER = 0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000001

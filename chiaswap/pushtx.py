@@ -6,18 +6,18 @@ import asyncio
 import socket
 import ssl
 
-from aiohttp import (
-    ClientSession,
-    ClientTimeout,
-    WSMessage,
+from aiohttp import ClientSession, ClientTimeout, WSMessage, WSMsgType
+
+from hsms.streamables.spend_bundle import SpendBundle
+
+from .chia_blockchain import (
+    Message,
+    ProtocolMessageTypes,
+    wallet_protocol,
+    Handshake,
+    make_msg,
+    NodeType_WALLET,
 )
-from chia.protocols.protocol_message_types import ProtocolMessageTypes
-from chia.protocols.shared_protocol import Handshake
-from chia.protocols import wallet_protocol
-from chia.server.outbound_message import Message, make_msg
-from chia.server.server import NodeType
-from chia.types.spend_bundle import SpendBundle
-from chia.util.ints import uint16, uint8
 
 
 DNS_INTRODUCER_HOSTNAME = "dns-introducer.chia.net"
@@ -98,14 +98,14 @@ def make_outbound_handshake_blob() -> bytes:
     protocol_version = "0.0.33"
     chia_full_version_str = "1.0.0.0"
     server_port = 1023
-    node_type = NodeType.WALLET
+    node_type = NodeType_WALLET
     capabilities = [(1, "1")]
     handshake = Handshake(
         network_id,
         protocol_version,
         chia_full_version_str,
-        uint16(server_port),
-        uint8(node_type),
+        server_port,
+        node_type,
         capabilities,
     )
     outbound_handshake = make_msg(ProtocolMessageTypes.handshake, handshake)
@@ -113,10 +113,8 @@ def make_outbound_handshake_blob() -> bytes:
 
 
 def make_send_transaction_blob(spend_bundle: SpendBundle) -> bytes:
-    msg = make_msg(
-        ProtocolMessageTypes.send_transaction,
-        wallet_protocol.SendTransaction(spend_bundle),
-    )
+    stm = wallet_protocol.SendTransaction(spend_bundle)
+    msg = make_msg(ProtocolMessageTypes.send_transaction, stm)
     return bytes(msg)
 
 
@@ -158,10 +156,10 @@ async def push_tx_to_host(
         rv = "failed"
         while 1:
             response: WSMessage = await ws.receive()
-            if response.type == 8:  # WSMsgType.CLOSE
+            if response.type == WSMsgType.CLOSE:
                 v = None
                 break
-            if response.type != 2:  # WSMsgType.BINARY
+            if response.type != WSMsgType.BINARY:
                 v = None
                 break
             # print(response)
@@ -226,7 +224,8 @@ def show_coins_spent(spend_bundle):
 async def async_main(args, parser):
     spend_bundle = args.spend_bundle[0]
     if args.debug:
-        spend_bundle.debug()
+        print("debug currently unsupported")
+        # spend_bundle.debug()
     show_coins_spent(spend_bundle)
     if not args.dry_run:
         await push_tx(spend_bundle)
