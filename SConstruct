@@ -5,7 +5,7 @@ import setuptools_scm
 import pytoml
 
 
-metadata = dict(pytoml.load(open("pyproject.toml")))["tool"]["enscons"]
+metadata = dict(pytoml.load(open("pyproject.toml")))["project"]
 metadata["version"] = setuptools_scm.get_version(local_scheme="no-local-version")
 
 full_tag = "py3-none-any"  # pure Python packages compatible with 2+3

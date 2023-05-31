@@ -3,7 +3,7 @@
 # https://github.com/sipa/bips/blob/bip-bech32m/bip-bech32m.mediawiki
 """Reference implementation for Bech32m and segwit addresses."""
 
-from hsms.contrib.bech32m import bech32_decode, bech32_encode, convertbits, Encoding
+from chia_base.util.bech32 import bech32_decode, bech32_encode, convertbits, Encoding
 
 
 def encode_puzzle_hash(puzzle_hash: bytes, prefix: str) -> str:

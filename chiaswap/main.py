@@ -19,10 +19,8 @@ import blspy
 
 from clvm_rs import Program
 
-from hsms.contrib.bech32m import bech32_decode, convertbits
-from hsms.streamables.coin import Coin
-from hsms.streamables.coin_spend import CoinSpend
-from hsms.streamables.spend_bundle import SpendBundle
+from chia_base.contrib.bech32m import bech32_decode, convertbits
+from chia_base.core import Coin, CoinSpend, SpendBundle
 
 from .p2_conditions import puzzle_for_conditions
 from .p2_delegated_puzzle_or_hidden_puzzle import (

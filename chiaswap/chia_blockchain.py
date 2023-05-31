@@ -5,7 +5,7 @@ from typing import Any, List, Optional, Tuple
 import io
 import struct
 
-from hsms.streamables.spend_bundle import SpendBundle
+from chia_base.core import SpendBundle
 
 uint16 = uint8 = int
 bytes32 = bytes

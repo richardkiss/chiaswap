@@ -8,7 +8,7 @@ import ssl
 
 from aiohttp import ClientSession, ClientTimeout, WSMessage, WSMsgType
 
-from hsms.streamables.spend_bundle import SpendBundle
+from chia_base.core import SpendBundle
 
 from .chia_blockchain import (
     Message,
@@ -208,7 +208,7 @@ async def push_tx_to_host(
             if msg.startswith(s):
                 return r
         if DEBUG_PEER_PROTOCOL:
-            print(f"unknown `msg`, consider diagnosing and adding code for this case")
+            print("unknown `msg`, consider diagnosing and adding code for this case")
             print("Dropping into debugger; enter `c` to continue `pushtx`")
             breakpoint()
         return msg
