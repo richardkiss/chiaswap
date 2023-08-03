@@ -32,13 +32,19 @@ class Message:
 
     @classmethod
     def from_bytes(cls, blob: bytes) -> "Message":
-        # t = blob[0]
-        pass
+        s = io.BytesIO(blob)
+        message_type = s.read(1)[0]
+        has_some = s.read(1)[0]
+        id = struct.unpack("!H", s.read(2))[0] if has_some else None
+        data = s.read()[4:]
+        return Message(message_type, id, data)
 
 
 class ProtocolMessageTypes(IntEnum):
     handshake = 1
     send_transaction = 48
+    transaction_ack = 49
+    new_peak_wallet = 50
 
 
 @dataclass(frozen=True)
@@ -107,6 +113,14 @@ class TransactionAck:
     txid: bytes32
     status: uint8  # MempoolInclusionStatus
     error: Optional[str]
+
+    @classmethod
+    def from_bytes(cls, blob: bytes) -> "TransactionAck":
+        txid = blob[:32]
+        status = blob[32]
+        has_err = blob[33]
+        error = blob[38:].decode() if has_err else None
+        return cls(txid, status, has_err)
 
 
 @dataclass(frozen=True)

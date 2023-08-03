@@ -62,16 +62,17 @@ from typing import Union
 
 from blspy import G1Element, PrivateKey
 
+from chialisp_puzzles import load_puzzle
+
 from clvm_rs import Program
 
-from .load_clvm import load_clvm
 from .p2_conditions import puzzle_for_conditions
 
 DEFAULT_HIDDEN_PUZZLE = Program.from_bytes(bytes.fromhex("ff0980"))
 
 DEFAULT_HIDDEN_PUZZLE_HASH = DEFAULT_HIDDEN_PUZZLE.tree_hash()  # this puzzle `(x)` always fails
 
-MOD = load_clvm("p2_delegated_puzzle_or_hidden_puzzle.clvm")
+MOD = load_puzzle("p2_delegated_puzzle_or_hidden_puzzle")
 
 PublicKeyProgram = Union[bytes, Program]
 

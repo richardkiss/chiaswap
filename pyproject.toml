@@ -6,7 +6,7 @@ license = "MIT"
 repository = "https://github.com/richardkiss/chiaswap.git"
 readme = "README.md"
 src_root = "."
-dependencies = ["chia_base==0.1.1", "aiohttp"]
+dependencies = ["chia_base==0.1.1", "aiohttp", "chialisp_puzzles"]
 packages = ["chiaswap"]
 # version is defined with `setuptools_scm`. See `SConstruct` file.
 
